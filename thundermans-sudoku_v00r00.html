@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Thundermans Sudoku</title>
+<!-- Russo One = bold blocky print font, closest feel to Thundermans logo lettering -->
+<link href="https://fonts.googleapis.com/css2?family=Russo+One&family=Exo+2:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --purple:       #7B2FBE;
+    --purple-dark:  #3A0E6E;
+    --purple-mid:   #5A1A9E;
+    --purple-light: #C084FC;
+    --yellow:       #FACC15;
+    --yellow-light: #FEF08A;
+    --red:          #E8152A;
+    --red-dark:     #9B0E1C;
+    --red-light:    #FF6B7A;
+    --green:        #22C55E;
+    --green-dark:   #15803D;
+    --green-light:  #86EFAC;
+    --blue:         #3B82F6;
+    --blue-light:   #93C5FD;
+    --bg:           #140228;
+    --bg2:          #220944;
+    --bg3:          #2E0F5C;
+    --cell-bg:      #1E0840;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Exo 2', sans-serif;
+    background: var(--bg);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* ── Star field ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      radial-gradient(1px 1px at  8% 12%, rgba(250,204,21,.7) 0%, transparent 100%),
+      radial-gradient(1px 1px at 22% 44%, rgba(250,204,21,.4) 0%, transparent 100%),
+      radial-gradient(2px 2px at 58%  9%, rgba(255,255,255,.5) 0%, transparent 100%),
+      radial-gradient(1px 1px at 74% 29%, rgba(232, 21, 42,.5) 0%, transparent 100%),
+      radial-gradient(1px 1px at 87% 54%, rgba(255,255,255,.35)0%, transparent 100%),
+      radial-gradient(2px 2px at 39% 74%, rgba(250,204,21,.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at  4% 79%, rgba(232, 21, 42,.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 91% 84%, rgba(250,204,21,.4) 0%, transparent 100%),
+      radial-gradient(1px 1px at 50% 91%, rgba(255,255,255,.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 14% 61%, rgba(232, 21, 42,.25)0%, transparent 100%),
+      radial-gradient(1px 1px at 66% 37%, rgba(255,255,255,.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 33% 22%, rgba(250,204,21,.3) 0%, transparent 100%);
+    pointer-events: none; z-index: 0;
+  }
+
+  /* ── Deco lightning ── */
+  .ldeco {
+    position: fixed; font-size: 90px; opacity: 0.055;
+    pointer-events: none; z-index: 0; color: var(--red);
+    filter: drop-shadow(0 0 4px var(--red));
+  }
+  .ldeco.l1 { top: 3%;    left: 1%;  transform: rotate(-25deg); }
+  .ldeco.l2 { top: 28%;   right: 1%; transform: rotate(18deg);  }
+  .ldeco.l3 { bottom: 18%;left: 4%;  transform: rotate(-12deg); }
+  .ldeco.l4 { bottom: 4%; right: 4%; transform: rotate(22deg);  }
+
+  /* ── Header ── */
+  .header {
+    position: relative; z-index: 1;
+    text-align: center; padding: 22px 16px 10px; width: 100%;
+  }
+  .logo-wrap {
+    display: flex; align-items: center; justify-content: center;
+    gap: 12px; margin-bottom: 3px;
+  }
+  .bolt {
+    display: inline-block; font-size: 2.1rem;
+    color: var(--yellow);
+    filter: drop-shadow(0 0 6px var(--yellow));
+    animation: bolt-pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes bolt-pulse {
+    0%,100% { filter: drop-shadow(0 0 5px var(--yellow)) drop-shadow(0 0 0px var(--red));  transform: scale(1);    }
+    50%     { filter: drop-shadow(0 0 14px var(--yellow)) drop-shadow(0 0 8px var(--red)); transform: scale(1.18); }
+  }
+
+  h1 {
+    font-family: 'Russo One', sans-serif;
+    font-size: clamp(1.9rem, 6.5vw, 3.4rem);
+    color: var(--yellow);
+    letter-spacing: 4px;
+    text-shadow:
+      2px  2px 0   var(--red-dark),
+      4px  4px 0   var(--purple-dark),
+      0    0   22px rgba(250,204,21,.45),
+      0    0   40px rgba(232,21,42,.2);
+    line-height: 1;
+  }
+  .subtitle {
+    font-family: 'Exo 2', sans-serif;
+    font-size: 0.75rem; font-weight: 800;
+    color: var(--red-light);
+    letter-spacing: 3px; text-transform: uppercase; margin-top: 3px;
+  }
+
+  /* ── Controls ── */
+  .controls {
+    position: relative; z-index: 1;
+    display: flex; align-items: center; gap: 8px;
+    margin: 10px 0 12px; flex-wrap: wrap;
+    justify-content: center; padding: 0 14px;
+  }
+
+  .btn {
+    font-family: 'Russo One', sans-serif;
+    font-size: 0.88rem; letter-spacing: 1px;
+    padding: 8px 16px; border: none; border-radius: 28px;
+    cursor: pointer; transition: transform .15s, box-shadow .15s;
+  }
+  .btn:hover  { transform: translateY(-2px); }
+  .btn:active { transform: scale(.94); }
+  .btn-new   { background: linear-gradient(135deg,var(--yellow),#F59E0B); color: var(--purple-dark); box-shadow: 0 4px 14px rgba(250,204,21,.4); }
+  .btn-hint  { background: linear-gradient(135deg,var(--blue),#2563EB);   color: #fff;               box-shadow: 0 4px 14px rgba(59,130,246,.4);  }
+  .btn-clear { background: linear-gradient(135deg,var(--red),var(--red-dark)); color: #fff;           box-shadow: 0 4px 14px rgba(232,21,42,.45);  }
+
+  .difficulty-wrap { display: flex; align-items: center; gap: 6px; }
+  .difficulty-wrap label {
+    font-family: 'Exo 2', sans-serif; font-weight: 800;
+    color: var(--purple-light); font-size: 0.8rem;
+  }
+  select {
+    font-family: 'Exo 2', sans-serif; font-weight: 700;
+    background: var(--bg2); color: var(--yellow);
+    border: 2px solid var(--purple); border-radius: 18px;
+    padding: 6px 12px; cursor: pointer; font-size: 0.8rem; outline: none;
+  }
+
+  /* ── Stats ── */
+  .stats {
+    position: relative; z-index: 1;
+    display: flex; gap: 12px; margin-bottom: 12px; justify-content: center;
+    flex-wrap: wrap;
+  }
+  .stat-box {
+    background: var(--bg2); border: 2px solid var(--purple-mid);
+    border-radius: 14px; padding: 6px 14px;
+    text-align: center; min-width: 72px;
+  }
+  .stat-label {
+    font-family: 'Exo 2', sans-serif; font-size: 0.58rem;
+    color: var(--purple-light); text-transform: uppercase;
+    letter-spacing: 1px; font-weight: 800;
+  }
+  .stat-value {
+    font-family: 'Russo One', sans-serif;
+    font-size: 1.45rem; color: var(--yellow);
+    letter-spacing: 1px; line-height: 1.15;
+  }
+  /* Anfänger badge */
+  .anfaenger-badge {
+    display: none;
+    position: relative; z-index: 1;
+    background: linear-gradient(135deg, var(--green-dark), #166534);
+    border: 2px solid var(--green);
+    border-radius: 20px; padding: 5px 16px;
+    font-family: 'Russo One', sans-serif; font-size: 0.8rem;
+    color: var(--green-light); letter-spacing: 1px;
+    box-shadow: 0 0 12px rgba(34,197,94,.3);
+    margin-bottom: 6px;
+  }
+  .anfaenger-badge.show { display: block; }
+
+  /* ── Game area ── */
+  .game-area {
+    position: relative; z-index: 1;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 14px; padding: 0 14px 30px; width: 100%;
+  }
+
+  /* ── Board ── */
+  .board-wrap { position: relative; }
+  .board-glow {
+    position: absolute; inset: -5px; border-radius: 18px;
+    background: linear-gradient(135deg, var(--red), var(--purple), var(--yellow));
+    z-index: -1; filter: blur(12px); opacity: .45;
+    animation: glow-cycle 4s ease-in-out infinite;
+  }
+  @keyframes glow-cycle {
+    0%  { opacity: .35; filter: blur(10px); }
+    50% { opacity: .65; filter: blur(14px); }
+    100%{ opacity: .35; filter: blur(10px); }
+  }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(9,1fr);
+    grid-template-rows:    repeat(9,1fr);
+    background: var(--purple-dark);
+    border: 3px solid var(--red);
+    border-radius: 13px; overflow: hidden;
+    width:  min(93vw, 448px);
+    height: min(93vw, 448px);
+  }
+
+  .cell {
+    background: var(--cell-bg);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Russo One', sans-serif;
+    font-size: clamp(12px, 3.7vw, 20px);
+    cursor: pointer; color: var(--purple-light);
+    user-select: none; -webkit-tap-highlight-color: transparent;
+    transition: background .1s;
+    border-right:  1px solid rgba(90,26,158,.4);
+    border-bottom: 1px solid rgba(90,26,158,.4);
+    position: relative;
+  }
+  .cell.box-right  { border-right:  2.5px solid var(--red); }
+  .cell.box-bottom { border-bottom: 2.5px solid var(--red); }
+  .cell.no-right   { border-right:  none; }
+  .cell.no-bottom  { border-bottom: none; }
+
+  /* given = yellow, big */
+  .cell.given {
+    color: var(--yellow);
+    font-size: clamp(14px, 4.1vw, 22px);
+    cursor: default;
+    text-shadow: 0 0 6px rgba(250,204,21,.35);
+  }
+
+  /* player correct = green, permanent */
+  .cell.correct {
+    color: var(--green) !important;
+    text-shadow: 0 0 8px rgba(34,197,94,.5);
+  }
+
+  /* player wrong = red, stays until erased */
+  .cell.wrong {
+    color: var(--red-light) !important;
+    background: rgba(232,21,42,.12) !important;
+    text-shadow: 0 0 6px rgba(232,21,42,.4);
+  }
+
+  /* selection states */
+  .cell.selected   { background: rgba(123,47,190,.5); box-shadow: inset 0 0 0 2px var(--purple-light); }
+  .cell.highlight  { background: rgba(90,26,158,.22); }
+
+  /* same number as selected — highlight style per correctness */
+  .cell.same-correct { background: rgba(34,197,94,.12);  }
+  .cell.same-wrong   { background: rgba(232,21,42,.1);   }
+  .cell.same-given   { background: rgba(250,204,21,.1);  }
+
+  /* flash animations */
+  .cell.flash-correct { animation: flash-green .35s ease; }
+  .cell.flash-wrong   { animation: flash-red   .35s ease; }
+
+  @keyframes flash-green {
+    0%   { background: rgba(34,197,94,.5); transform: scale(1.12); }
+    100% { background: transparent;        transform: scale(1);    }
+  }
+  @keyframes flash-red {
+    0%,50%{ background: rgba(232,21,42,.5); transform: translateX(-3px); }
+    25%   { transform: translateX(3px); }
+    100%  { background: transparent;       transform: translateX(0); }
+  }
+
+  /* ── Numpad ── */
+  .numpad {
+    display: grid; grid-template-columns: repeat(5,1fr);
+    gap: 7px; width: min(93vw, 448px);
+  }
+  .numpad-btn {
+    font-family: 'Russo One', sans-serif; font-size: 1.3rem;
+    padding: 11px 0; letter-spacing: 1px;
+    border: 2px solid var(--purple-mid); border-radius: 12px;
+    background: var(--bg2); color: var(--yellow);
+    cursor: pointer; transition: background .14s, transform .12s;
+    text-align: center; box-shadow: 0 2px 7px rgba(0,0,0,.35);
+  }
+  .numpad-btn:hover  { background: var(--purple-mid); transform: translateY(-2px); }
+  .numpad-btn:active { transform: scale(.91); }
+  .numpad-btn.erase  { color: var(--red-light); border-color: var(--red); font-size: 1.05rem; }
+  .numpad-btn.erase:hover { background: rgba(232,21,42,.18); }
+
+  /* ── Message overlay ── */
+  .message-overlay {
+    position: fixed; inset: 0; background: rgba(8,1,20,.88);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100; opacity: 0; pointer-events: none;
+    transition: opacity .35s; backdrop-filter: blur(5px);
+  }
+  .message-overlay.show { opacity: 1; pointer-events: all; }
+  .message-box {
+    background: linear-gradient(145deg, var(--bg2), var(--purple-dark));
+    border: 3px solid var(--red); border-radius: 22px;
+    padding: 36px 38px; text-align: center; max-width: 310px;
+    box-shadow: 0 0 40px rgba(232,21,42,.3), 0 0 70px rgba(123,47,190,.3);
+    animation: slide-in .35s ease;
+  }
+  @keyframes slide-in {
+    from { transform: scale(.68) translateY(28px); opacity: 0; }
+    to   { transform: scale(1)   translateY(0);    opacity: 1; }
+  }
+  .message-icon  { font-size: 3.6rem; margin-bottom: 9px; }
+  .message-title {
+    font-family: 'Russo One', sans-serif; font-size: 2.2rem;
+    color: var(--yellow); letter-spacing: 3px;
+    text-shadow: 2px 2px 0 var(--red-dark), 0 0 16px rgba(250,204,21,.4);
+    margin-bottom: 7px;
+  }
+  .message-sub { color: var(--purple-light); font-weight: 600; margin-bottom: 20px; font-size: .95rem; }
+
+  /* ── Confetti ── */
+  .confetti-wrap { position: fixed; inset: 0; pointer-events: none; z-index: 99; }
+  .cp {
+    position: absolute; border-radius: 2px;
+    animation: cp-fall linear forwards;
+  }
+  @keyframes cp-fall {
+    0%   { transform: translateY(-30px) rotate(0deg);   opacity: 1; }
+    100% { transform: translateY(105vh) rotate(800deg); opacity: 0; }
+  }
+
+  /* ── Legend ── */
+  .legend {
+    position: relative; z-index: 1;
+    display: flex; gap: 14px; justify-content: center;
+    flex-wrap: wrap; margin-bottom: 4px;
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 5px;
+    font-family: 'Exo 2', sans-serif; font-size: 0.72rem;
+    font-weight: 700; color: var(--purple-light);
+  }
+  .legend-dot {
+    width: 12px; height: 12px; border-radius: 3px;
+  }
+  .ld-given   { background: var(--yellow); }
+  .ld-correct { background: var(--green);  }
+  .ld-wrong   { background: var(--red);    }
+
+  @media (max-width: 480px) {
+    .btn { padding: 7px 12px; font-size: 0.82rem; }
+    .numpad-btn { padding: 9px 0; font-size: 1.1rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="ldeco l1">⚡</div>
+<div class="ldeco l2">⚡</div>
+<div class="ldeco l3">⚡</div>
+<div class="ldeco l4">⚡</div>
+
+<div class="header">
+  <div class="logo-wrap">
+    <span class="bolt">⚡</span>
+    <h1>THUNDERMANS</h1>
+    <span class="bolt">⚡</span>
+  </div>
+  <div class="subtitle">Super-Sudoku Challenge</div>
+</div>
+
+<div class="controls">
+  <div class="difficulty-wrap">
+    <label>Level:</label>
+    <select id="difficultySelect">
+      <option value="anfaenger">⭐ Anfänger</option>
+      <option value="easy">⚡ Leicht</option>
+      <option value="medium" selected>⚡⚡ Mittel</option>
+      <option value="hard">⚡⚡⚡ Schwer</option>
+      <option value="einstein">💀 Einstein</option>
+    </select>
+  </div>
+  <button class="btn btn-new"   onclick="newGame()">🎮 Neu</button>
+  <button class="btn btn-hint"  onclick="giveHint()">💡 Tipp</button>
+  <button class="btn btn-clear" onclick="clearSelected()">✕ Löschen</button>
+</div>
+
+<div id="anfaengerBadge" class="anfaenger-badge">⭐ Anfänger-Modus — keine Fehlerwertung!</div>
+
+<div class="stats">
+  <div class="stat-box">
+    <div class="stat-label">Zeit</div>
+    <div class="stat-value" id="timerDisplay">0:00</div>
+  </div>
+  <div class="stat-box" id="errorsBox">
+    <div class="stat-label">Fehler</div>
+    <div class="stat-value" id="errorsDisplay">0</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-label">Tipps</div>
+    <div class="stat-value" id="hintsDisplay">3</div>
+  </div>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot ld-given"></div>Vorgabe</div>
+  <div class="legend-item"><div class="legend-dot ld-correct"></div>Richtig</div>
+  <div class="legend-item"><div class="legend-dot ld-wrong"></div>Falsch</div>
+</div>
+
+<div class="game-area">
+  <div class="board-wrap">
+    <div class="board-glow"></div>
+    <div class="board" id="board"></div>
+  </div>
+  <div class="numpad" id="numpad"></div>
+</div>
+
+<div class="message-overlay" id="msgOverlay">
+  <div class="message-box">
+    <div class="message-icon"  id="msgIcon">⚡</div>
+    <div class="message-title" id="msgTitle">SUPER!</div>
+    <div class="message-sub"   id="msgSub">Du hast gewonnen!</div>
+    <button class="btn btn-new" onclick="newGame();closeMsg()">🎮 Nochmal</button>
+  </div>
+</div>
+
+<div class="confetti-wrap" id="confettiWrap"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  SUDOKU ENGINE
+// ═══════════════════════════════════════════════════════
+
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function canPlace(b, row, col, n) {
+  for (let i = 0; i < 9; i++) {
+    if (b[row][i] === n || b[i][col] === n) return false;
+  }
+  const br = Math.floor(row/3)*3, bc = Math.floor(col/3)*3;
+  for (let r = br; r < br+3; r++)
+    for (let c = bc; c < bc+3; c++)
+      if (b[r][c] === n) return false;
+  return true;
+}
+
+function fillBoard(b) {
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      if (b[r][c] !== 0) continue;
+      for (const n of shuffle([1,2,3,4,5,6,7,8,9])) {
+        if (canPlace(b, r, c, n)) {
+          b[r][c] = n;
+          if (fillBoard(b)) return true;
+          b[r][c] = 0;
+        }
+      }
+      return false;
+    }
+  }
+  return true;
+}
+
+function generateSolution() {
+  const b = Array.from({length:9}, () => Array(9).fill(0));
+  fillBoard(b);
+  return b;
+}
+
+// Removals per difficulty (no uniqueness check – fast)
+const REMOVALS = { anfaenger: 25, easy: 33, medium: 45, hard: 53, einstein: 60 };
+
+function createPuzzle(sol, diff) {
+  const n   = REMOVALS[diff] || 45;
+  const puz = sol.map(r => [...r]);
+  shuffle([...Array(81).keys()]).slice(0, n).forEach(idx => {
+    puz[Math.floor(idx/9)][idx%9] = 0;
+  });
+  return puz;
+}
+
+// ═══════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════
+
+let solution  = [];
+let userBoard = [];
+let given     = [];          // true = pre-filled
+let cellState = [];          // 'empty' | 'correct' | 'wrong'
+let selR = -1, selC = -1;
+let errors = 0, hintsLeft = 3;
+let timerSecs = 0, timerID = null;
+let gameOver  = false;
+let isAnfaenger = false;
+
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
+
+function newGame() {
+  closeMsg();
+  const diff   = document.getElementById('difficultySelect').value;
+  isAnfaenger  = (diff === 'anfaenger');
+
+  solution  = generateSolution();
+  const puz = createPuzzle(solution, diff);
+  userBoard = puz.map(r => [...r]);
+  given     = puz.map(r => r.map(v => v !== 0));
+  cellState = Array.from({length:9}, () => Array(9).fill('empty'));
+
+  // mark given cells as 'correct' conceptually (they won't have state used)
+  selR = -1; selC = -1;
+  errors = 0; hintsLeft = 3; gameOver = false;
+
+  document.getElementById('errorsDisplay').textContent = '0';
+  document.getElementById('hintsDisplay').textContent  = '3';
+
+  // Anfänger badge
+  document.getElementById('anfaengerBadge').classList.toggle('show', isAnfaenger);
+  // errors box opacity
+  document.getElementById('errorsBox').style.opacity = isAnfaenger ? '0.35' : '1';
+
+  renderBoard();
+  renderNumpad();
+  resetTimer();
+}
+
+// ═══════════════════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════════════════
+
+function bCls(r, c) {
+  const cls = [];
+  if (c === 2 || c === 5) cls.push('box-right');
+  if (c === 8)             cls.push('no-right');
+  if (r === 2 || r === 5) cls.push('box-bottom');
+  if (r === 8)             cls.push('no-bottom');
+  return cls;
+}
+
+function renderBoard() {
+  const el = document.getElementById('board');
+  el.innerHTML = '';
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      const cell = document.createElement('div');
+      cell.dataset.r = r;
+      cell.dataset.c = c;
+      cell.addEventListener('click', () => onCellClick(r, c));
+      el.appendChild(cell);
+      refreshCellEl(cell, r, c);
+    }
+  }
+}
+
+function renderNumpad() {
+  const np = document.getElementById('numpad');
+  np.innerHTML = '';
+  for (let n = 1; n <= 9; n++) {
+    const b = document.createElement('div');
+    b.className = 'numpad-btn';
+    b.textContent = n;
+    b.addEventListener('click', () => placeNumber(n));
+    np.appendChild(b);
+  }
+  const er = document.createElement('div');
+  er.className = 'numpad-btn erase';
+  er.textContent = '✕';
+  er.addEventListener('click', () => placeNumber(0));
+  np.appendChild(er);
+}
+
+function getCell(r, c) {
+  return document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+}
+
+// Rebuild all classes + text for one cell element
+function refreshCellEl(el, r, c) {
+  const cls = ['cell', ...bCls(r, c)];
+  el.textContent = '';
+
+  if (given[r][c]) {
+    cls.push('given');
+    el.textContent = userBoard[r][c];
+  } else if (userBoard[r][c] !== 0) {
+    if (cellState[r][c] === 'correct') cls.push('correct');
+    else                               cls.push('wrong');
+    el.textContent = userBoard[r][c];
+  }
+
+  el.className = cls.join(' ');
+}
+
+function refreshCell(r, c) {
+  const el = getCell(r, c);
+  if (el) refreshCellEl(el, r, c);
+}
+
+// ═══════════════════════════════════════════════════════
+//  HIGHLIGHTS  —  same-number logic
+//  Given=yellow ring, correct=green ring, wrong=red ring
+// ═══════════════════════════════════════════════════════
+
+function applyHighlights() {
+  document.querySelectorAll('.cell').forEach(cell => {
+    cell.classList.remove('selected','highlight','same-given','same-correct','same-wrong');
+    if (selR < 0) return;
+
+    const r = +cell.dataset.r, c = +cell.dataset.c;
+
+    // selected cell
+    if (r === selR && c === selC) {
+      cell.classList.add('selected');
+      return;
+    }
+
+    // zone highlight (row / col / box)
+    const sameBox =
+      Math.floor(r/3) === Math.floor(selR/3) &&
+      Math.floor(c/3) === Math.floor(selC/3);
+    if (r === selR || c === selC || sameBox)
+      cell.classList.add('highlight');
+
+    // same-number highlight — only if selected cell has a number
+    const sv = userBoard[selR][selC];
+    if (sv !== 0 && userBoard[r][c] === sv) {
+      if (given[r][c])                      cell.classList.add('same-given');
+      else if (cellState[r][c] === 'correct')cell.classList.add('same-correct');
+      else                                   cell.classList.add('same-wrong');
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  INTERACTION
+// ═══════════════════════════════════════════════════════
+
+function onCellClick(r, c) {
+  if (gameOver) return;
+  selR = r; selC = c;
+  applyHighlights();
+}
+
+function placeNumber(num) {
+  if (gameOver || selR < 0) return;
+  const r = selR, c = selC;
+  if (given[r][c]) return;
+
+  if (num === 0) {
+    // erase
+    userBoard[r][c] = 0;
+    cellState[r][c] = 'empty';
+    refreshCell(r, c);
+    applyHighlights();
+    return;
+  }
+
+  userBoard[r][c] = num;
+
+  if (num === solution[r][c]) {
+    // ── CORRECT ──
+    cellState[r][c] = 'correct';
+    refreshCell(r, c);
+    const el = getCell(r, c);
+    el.classList.add('flash-correct');
+    setTimeout(() => el.classList.remove('flash-correct'), 380);
+
+    if (isComplete()) {
+      gameOver = true; stopTimer();
+      setTimeout(() => { launchConfetti(); showMsg('🏆','SUPER!','Perfekt! Zeit: '+formatTime(timerSecs)); }, 380);
+    }
+  } else {
+    // ── WRONG ──
+    cellState[r][c] = 'wrong';
+    refreshCell(r, c);
+    const el = getCell(r, c);
+    el.classList.add('flash-wrong');
+    setTimeout(() => el.classList.remove('flash-wrong'), 380);
+
+    if (!isAnfaenger) {
+      errors++;
+      document.getElementById('errorsDisplay').textContent = errors;
+      if (errors >= 5) {
+        gameOver = true; stopTimer();
+        setTimeout(() => showMsg('💀','GAME OVER','Zu viele Fehler! Versuch es nochmal.'), 450);
+      }
+    }
+  }
+
+  applyHighlights();
+}
+
+function clearSelected() {
+  if (gameOver || selR < 0 || given[selR][selC]) return;
+  placeNumber(0);
+}
+
+function giveHint() {
+  if (gameOver || hintsLeft <= 0) return;
+  const empties = [];
+  for (let r = 0; r < 9; r++)
+    for (let c = 0; c < 9; c++)
+      if (!given[r][c] && cellState[r][c] !== 'correct')
+        empties.push([r,c]);
+  if (!empties.length) return;
+  const [r,c] = empties[Math.floor(Math.random()*empties.length)];
+  selR = r; selC = c;
+  userBoard[r][c] = solution[r][c];
+  cellState[r][c] = 'correct';
+  given[r][c]     = true;          // lock
+  refreshCell(r,c);
+  hintsLeft--;
+  document.getElementById('hintsDisplay').textContent = hintsLeft;
+  applyHighlights();
+  if (isComplete()) {
+    gameOver = true; stopTimer();
+    setTimeout(() => { launchConfetti(); showMsg('🏆','SUPER!','Perfekt! Zeit: '+formatTime(timerSecs)); }, 380);
+  }
+}
+
+function isComplete() {
+  for (let r = 0; r < 9; r++)
+    for (let c = 0; c < 9; c++)
+      if (cellState[r][c] !== 'correct' && !given[r][c]) return false;
+      else if (given[r][c] && userBoard[r][c] !== solution[r][c]) return false;
+  return true;
+}
+
+// ═══════════════════════════════════════════════════════
+//  TIMER
+// ═══════════════════════════════════════════════════════
+
+function resetTimer() {
+  stopTimer(); timerSecs = 0;
+  document.getElementById('timerDisplay').textContent = '0:00';
+  timerID = setInterval(() => {
+    timerSecs++;
+    document.getElementById('timerDisplay').textContent = formatTime(timerSecs);
+  }, 1000);
+}
+function stopTimer()   { clearInterval(timerID); timerID = null; }
+function formatTime(s) { return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
+
+// ═══════════════════════════════════════════════════════
+//  MESSAGE
+// ═══════════════════════════════════════════════════════
+
+function showMsg(icon, title, sub) {
+  document.getElementById('msgIcon').textContent  = icon;
+  document.getElementById('msgTitle').textContent = title;
+  document.getElementById('msgSub').textContent   = sub;
+  document.getElementById('msgOverlay').classList.add('show');
+}
+function closeMsg() {
+  document.getElementById('msgOverlay').classList.remove('show');
+}
+
+// ═══════════════════════════════════════════════════════
+//  CONFETTI
+// ═══════════════════════════════════════════════════════
+
+function launchConfetti() {
+  const wrap = document.getElementById('confettiWrap');
+  wrap.innerHTML = '';
+  const colors = ['#FACC15','#7B2FBE','#E8152A','#22C55E','#C084FC','#FEF08A','#FF6B7A','#fff'];
+  for (let i = 0; i < 100; i++) {
+    const p = document.createElement('div');
+    p.className = 'cp';
+    const sz = 5 + Math.random()*9;
+    p.style.cssText =
+      'left:'              +(Math.random()*100)    +'%;'+
+      'top:-10px;'+
+      'background:'        +colors[Math.floor(Math.random()*colors.length)]+';'+
+      'animation-delay:'   +(Math.random()*1.8)    +'s;'+
+      'animation-duration:'+(1.6+Math.random()*1.6)+'s;'+
+      'width:'+sz+'px;height:'+sz+'px;';
+    wrap.appendChild(p);
+  }
+  setTimeout(() => wrap.innerHTML = '', 5000);
+}
+
+// ═══════════════════════════════════════════════════════
+//  KEYBOARD
+// ═══════════════════════════════════════════════════════
+
+document.addEventListener('keydown', e => {
+  if (gameOver) return;
+  if (e.key >= '1' && e.key <= '9') { placeNumber(+e.key); return; }
+  if (e.key === 'Backspace' || e.key === 'Delete' || e.key === '0') { placeNumber(0); return; }
+  const d = { ArrowUp:[-1,0], ArrowDown:[1,0], ArrowLeft:[0,-1], ArrowRight:[0,1] };
+  if (d[e.key]) {
+    e.preventDefault();
+    selR = Math.max(0, Math.min(8, (selR<0?4:selR) + d[e.key][0]));
+    selC = Math.max(0, Math.min(8, (selC<0?4:selC) + d[e.key][1]));
+    applyHighlights();
+  }
+});
+
+// ── GO ──
+newGame();
+</script>
+</body>
+</html>
