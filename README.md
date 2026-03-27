@@ -1,2 +1,2 @@
-# sudoku-thundermanns
-Thundermann theme sudoku
+# sudoku-thundermans
+Thunderman theme sudoku
